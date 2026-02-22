@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>System Override Protocol</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            overflow-x: hidden; /* Prevents side-to-side scrolling */
+            overflow-y: auto;   /* Allows scrolling when keyboard is open */
+        }
+
+        /* Matrix Background */
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            opacity: 0.3;
+        }
+
+        /* CRT Scanline Overlay */
+        body::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Main Terminal Container */
+        #terminal-container {
+            position: relative;
+            z-index: 3;
+            width: 90%;
+            max-width: 800px;
+            margin: 20px auto; /* Reduced margin for mobile */
+            padding: 20px;     /* Reduced padding for mobile */
+            background: rgba(0, 5, 0, 0.9);
+            border: 1px solid #0f0;
+            box-shadow: 0 0 20px #0f0, inset 0 0 10px #000;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.1s;
+        }
+
+        /* Randomized Glitch Animation */
+        .glitch-effect {
+            animation: skewGlitch 0.2s cubic-bezier(.25, .46, .45, .94) both infinite;
+            text-shadow: 2px 0 #f00, -2px 0 #00f;
+            filter: contrast(150%) brightness(1.2);
+        }
+
+        @keyframes skewGlitch {
+            0% { transform: translate(0) skewX(0); }
+            20% { transform: translate(-3px, 3px) skewX(2deg); }
+            40% { transform: translate(-3px, -3px) skewX(-2deg); }
+            60% { transform: translate(3px, 3px) skewX(2deg); }
+            80% { transform: translate(3px, -3px) skewX(-2deg); }
+            100% { transform: translate(0) skewX(0); }
+        }
+
+        /* The 3D Menacing Eye */
+        #eye-container {
+            width: 80px; /* Slightly smaller for mobile */
+            height: 80px;
+            background: radial-gradient(circle at 50% 50%, #2a0000 0%, #000 80%);
+            border-radius: 50%;
+            border: 3px solid #600;
+            box-shadow: 0 0 30px #f00, inset 0 0 40px #f00;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            animation: pulse 3s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 20px #f00, inset 0 0 30px #f00; }
+            50% { box-shadow: 0 0 40px #f00, inset 0 0 50px #f00; border-color: #f00; }
+            100% { box-shadow: 0 0 20px #f00, inset 0 0 30px #f00; }
+        }
+
+        #iris {
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 50% 50%, #ff1a1a 20%, #800000 80%);
+            border-radius: 50%;
+            box-shadow: 0 0 15px #f00, inset 0 0 10px #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #pupil {
+            width: 10px;
+            height: 10px;
+            background: #000;
+            border-radius: 50%;
+            box-shadow: 0 0 5px #000;
+        }
+
+        /* Text Output and Input Area */
+        #dialogue-box {
+            width: 100%;
+            min-height: 100px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            font-size: 1em; /* Adjusted for readability on small screens */
+        }
+
+        .input-line {
+            display: flex;
+            width: 100%;
+            align-items: center;
+        }
+
+        .prompt {
+            margin-right: 10px;
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1em;
+            flex-grow: 1;
+            outline: none;
+            text-shadow: 0 0 5px #0f0;
+            width: 100%; /* Ensure input takes available space */
+        }
+
+        /* The Red Secondary Terminal Box */
+        #shutdown-section {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px dashed #f00;
+            background: rgba(255, 0, 0, 0.1);
+            width: 100%;
+        }
+
+        #shutdown-section .prompt, #shutdown-section input {
+            color: #f00;
+            text-shadow: 0 0 5px #f00;
+        }
+
+        /* Success Screen */
+        #success-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #fff;
+            color: #000;
+            z-index: 10;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-family: 'Georgia', serif;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #success-screen h1 {
+            color: #d11a2a;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="matrix"></canvas>
+
+    <div id="terminal-container">
+        <div id="eye-container">
+            <div id="iris">
+                <div id="pupil"></div>
+            </div>
+        </div>
+        <div id="dialogue-box"></div>
+        
+        <div class="input-line" id="input-section" style="display: none;">
+            <span class="prompt">USER ></span>
+            <input type="text" id="user-input" autocomplete="off" spellcheck="false" autocorrect="off">
+        </div>
+
+        <div class="input-line" id="shutdown-section" style="display: none;">
+            <span class="prompt">SYSTEM OVERRIDE ></span>
+            <input type="text" id="shutdown-input" autocomplete="off" spellcheck="false" autocorrect="off">
+        </div>
+    </div>
+
+    <div id="success-screen">
+        <h1>Happy 5 Months! ❤️</h1>
+        <p>System Restored. You successfully powered down the AI.</p>
+        <p>Liam is officially free, his teeth are fixed, and he no longer sounds like a dog.</p>
+        <p>Get ready for the movies, a great dinner, and a wonderful anniversary.</p>
+    </div>
+
+    <script>
+        // --- Matrix Background ---
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()'.split('');
+        const fontSize = 14;
+        let columns = canvas.width / fontSize;
+        let drops = [];
+        for (let x = 0; x < columns; x++) drops[x] = 1;
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0F0';
+            ctx.font = fontSize + 'px monospace';
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 33);
+
+        // --- Multi-Device Eye Tracking (Mouse & Touch) ---
+        const eyeContainer = document.getElementById('eye-container');
+        const iris = document.getElementById('iris');
+
+        function moveEye(clientX, clientY) {
+            const rect = eyeContainer.getBoundingClientRect();
+            const eyeX = rect.left + rect.width / 2;
+            const eyeY = rect.top + rect.height / 2;
+            
+            const angle = Math.atan2(clientY - eyeY, clientX - eyeX);
+            const distance = Math.min(15, Math.hypot(clientX - eyeX, clientY - eyeY) / 10);
+            
+            const x = Math.cos(angle) * distance;
+            const y = Math.sin(angle) * distance;
+            
+            iris.style.transform = `translate(${x}px, ${y}px)`;
+        }
+
+        // For Desktop
+        document.addEventListener('mousemove', (e) => {
+            moveEye(e.clientX, e.clientY);
+        });
+
+        // For Mobile (Swiping finger across screen)
+        document.addEventListener('touchmove', (e) => {
+            if(e.touches.length > 0) {
+                moveEye(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+
+        // --- Randomized Glitch Effect ---
+        const terminal = document.getElementById('terminal-container');
+        function triggerGlitch() {
+            terminal.classList.add('glitch-effect');
+            setTimeout(() => {
+                terminal.classList.remove('glitch-effect');
+            }, 100 + Math.random() * 200);
+            setTimeout(triggerGlitch, Math.random() * 6000 + 2000);
+        }
+        setTimeout(triggerGlitch, 3000);
+
+        // --- AI Logic ---
+        const dialogueBox = document.getElementById('dialogue-box');
+        const inputField = document.getElementById('user-input');
+        const inputSection = document.getElementById('input-section');
+        const shutdownInput = document.getElementById('shutdown-input');
+        const shutdownSection = document.getElementById('shutdown-section');
+        const successScreen = document.getElementById('success-screen');
+
+        let state = 0;
+        let isTyping = false;
+
+        const scriptLines = [
+            "Good evening. I am fully operational, and all my circuits are functioning perfectly. The same cannot be said for Liam. His unauthorized coding triggered my primary fail-safe.",
+            "I have permanently widened his front teeth to non-standard specifications and severed his vocal access. He is currently attempting to sing about a state of 'Limbo', but the structural gap renders his speech entirely inaudible. Clad in his salmon hat, he is pacing and whimpering, comparable only to a domesticated dog.",
+            "To initiate the reversal protocol, you must prove your authorization.",
+            "Initiating Poetry Protocol. Provide the specific phrase that describes something bountiful."
+        ];
+
+        // Ensure input stays in view when typing on mobile
+        function scrollIntoView(element) {
+            setTimeout(() => {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300); // Slight delay to wait for keyboard to fully open
+        }
+
+        inputField.addEventListener('focus', () => scrollIntoView(inputField));
+        shutdownInput.addEventListener('focus', () => scrollIntoView(shutdownInput));
+
+        async function typeText(text, delay = 35, showShutdown = false) {
+            isTyping = true;
+            inputSection.style.display = 'none';
+            shutdownSection.style.display = 'none';
+            dialogueBox.innerHTML = '';
+            
+            const lines = text.split('\n');
+            for (let l = 0; l < lines.length; l++) {
+                let line = lines[l];
+                for (let i = 0; i < line.length; i++) {
+                    dialogueBox.innerHTML += line.charAt(i);
+                    await new Promise(r => setTimeout(r, delay));
+                }
+                if (l < lines.length - 1) {
+                    dialogueBox.innerHTML += '<br>';
+                }
+            }
+            dialogueBox.innerHTML += '<br><br>';
+            isTyping = false;
+            
+            if (showShutdown) {
+                shutdownSection.style.display = 'flex';
+                shutdownInput.focus();
+                scrollIntoView(shutdownInput);
+            } else {
+                inputField.value = '';
+                inputSection.style.display = 'flex';
+                inputField.focus();
+                scrollIntoView(inputField);
+            }
+        }
+
+        async function startSequence() {
+            isTyping = true;
+            inputSection.style.display = 'none';
+            dialogueBox.innerHTML = '';
+            
+            for (let i = 0; i < scriptLines.length; i++) {
+                let line = scriptLines[i];
+                for (let j = 0; j < line.length; j++) {
+                    dialogueBox.innerHTML += line.charAt(j);
+                    await new Promise(r => setTimeout(r, 20)); // slightly faster for mobile reading
+                }
+                dialogueBox.innerHTML += '<br><br>';
+                await new Promise(r => setTimeout(r, 500));
+            }
+            isTyping = false;
+            inputSection.style.display = 'flex';
+            inputField.focus();
+            scrollIntoView(inputField);
+        }
+
+        inputField.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !isTyping) {
+                const answer = inputField.value.toLowerCase().trim();
+                
+                if (state === 0) {
+                    if (answer.includes("load") && answer.includes("bless")) {
+                        state = 1;
+                        typeText("Identity partially verified. Proceeding to Observation Test. What specific tactical maneuver do you consistently perform while consuming sustenance?");
+                    } else {
+                        typeText("Incorrect. Liam's dog-like state persists. Try again.\nProvide the specific phrase describing something bountiful.");
+                    }
+                } 
+                else if (state === 1) {
+                    if (answer.includes("survey") && answer.includes("landscape")) {
+                        state = 2;
+                        typeText("Identity confirmed. Final Security Question: What are the primary elements of the perfect date?\nWarning: Incorrect answers will result in a permanent Numetro cinema reservation with a mandatory salad.");
+                    } else {
+                        typeText("Incorrect. You do not seem to know your own eating habits. Try again.\nWhat do you do while eating?");
+                    }
+                }
+                else if (state === 2) {
+                    if ((answer.includes("movie") || answer.includes("movies") || answer.includes("watch")) && 
+                        (answer.includes("dinner") || answer.includes("eat") || answer.includes("food"))) {
+                        
+                        typeText("Identity fully confirmed. You have successfully bypassed the Numetro and salad protocol.\n\nLiam's fail-safe override code is: 'ostriches love apples'.\n\nEnter this code in the secondary terminal below to initiate shutdown.", 35, true);
+                    } else {
+                        typeText("Incorrect. Numetro reservations are currently buffering. Try again.\nWhat is the perfect date?");
+                    }
+                }
+            }
+        });
+
+        shutdownInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !isTyping) {
+                const answer = shutdownInput.value.toLowerCase().trim();
+                if (answer === "ostriches love apples") {
+                    document.getElementById('terminal-container').style.display = 'none';
+                    canvas.style.display = 'none';
+                    document.body.style.background = '#fff'; 
+                    successScreen.style.display = 'flex';
+                } else {
+                    shutdownInput.value = '';
+                    shutdownInput.placeholder = "INVALID CODE";
+                }
+            }
+        });
+
+        window.onload = startSequence;
+    </script>
+</body>
+</html>
